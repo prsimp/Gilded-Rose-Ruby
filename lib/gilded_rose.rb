@@ -8,48 +8,82 @@ class GildedRose
   end
 
   def tick
-    if @name != "Aged Brie" and @name != "Backstage passes to a TAFKAL80ETC concert"
-      if @quality > 0
-        if @name != "Sulfuras, Hand of Ragnaros"
-          @quality = @quality - 1
-        end
-      end
+    return if legendary_item?
+
+    initial_quality_adjustment = if better_with_age?
+      1 + scarcity_adjustment
     else
-      if @quality < 50
-        @quality = @quality + 1
-        if @name == "Backstage passes to a TAFKAL80ETC concert"
-          if @days_remaining < 11
-            if @quality < 50
-              @quality = @quality + 1
-            end
-          end
-          if @days_remaining < 6
-            if @quality < 50
-              @quality = @quality + 1
-            end
-          end
-        end
-      end
+      -1
     end
-    if @name != "Sulfuras, Hand of Ragnaros"
-      @days_remaining = @days_remaining - 1
+
+    adjust_quality_by(initial_quality_adjustment)
+
+    @days_remaining = @days_remaining - 1
+
+    handle_expiration if expired_item?
+  end
+
+  private
+
+  def adjust_quality_by(amount)
+    return @quality if max_quality?
+    return 0 if @quality.zero?
+
+    amount = amount * 2 if conjured_item?
+
+    @quality = @quality + amount
+  end
+
+  def better_with_age?
+    tickets? || brie?
+  end
+
+  def brie?
+    @name == "Aged Brie"
+  end
+
+  def conjured_item?
+    @name =~ /Conjured/i
+  end
+
+  def expirable_item?
+    !(legendary_item? || brie?)
+  end
+
+  def expired_item?
+    @days_remaining < 0
+  end
+
+  def handle_expiration
+    if brie?
+      adjust_quality_by(1)
+    elsif tickets?
+      adjust_quality_by(-@quality)
+    else
+      adjust_quality_by(-1)
     end
-    if @days_remaining < 0
-      if @name != "Aged Brie"
-        if @name != "Backstage passes to a TAFKAL80ETC concert"
-          if @quality > 0
-            if @name != "Sulfuras, Hand of Ragnaros"
-              @quality = @quality - 1
-            end
-          end
-        else
-          @quality = @quality - @quality
-        end
-      else
-        if @quality < 50
-          @quality = @quality + 1
-        end
-      end
+  end
+
+  def legendary_item?
+    @name == "Sulfuras, Hand of Ragnaros"
+  end
+
+  def max_quality?
+    @quality >= 50
+  end
+
+  def scarcity_adjustment
+    return 0 unless tickets?
+
+    case @days_remaining
+    when (1..5)  then 2
+    when (6..10) then 1
+    else
+      0
     end
+  end
+
+  def tickets?
+    @name == "Backstage passes to a TAFKAL80ETC concert"
   end
 end
